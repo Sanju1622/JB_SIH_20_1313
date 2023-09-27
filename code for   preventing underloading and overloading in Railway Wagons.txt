@@ -1,0 +1,60 @@
+#include <Ethernet.h>
+
+#include <HX711.h>
+#include <LiquidCrystal.h>
+
+#define DOUT_PIN 2 // HX711 data pin
+#define CLK_PIN 3  // HX711 clock pin
+#define BUZZER_PIN 4 // Buzzer pin
+
+HX711 scale;
+LiquidCrystal lcd(7, 6, 5, 4, 3, 2);
+
+float totalWeight = 0.0;
+const float maxShortAlarmWeight = 30.0; // Weight to trigger a short alarm in kg
+const float maxLongAlarmWeight = 50.0;  // Weight to trigger a long alarm in kg
+
+void setup() {
+  scale.begin(DOUT_PIN, CLK_PIN);
+  lcd.begin(16, 2);
+  lcd.print("Total Weight:");
+  lcd.setCursor(0, 1);
+  lcd.print("0.00 kg");
+  pinMode(BUZZER_PIN, OUTPUT);
+}
+
+void loop() {
+  scale.set_scale();  // Calibrate the scale using a known weight if needed
+  scale.tare();       // Reset the scale to 0
+  
+  while (true) {
+    float weight = scale.get_units(10); // Read the weight from the load cell
+    totalWeight += weight;
+    
+    lcd.setCursor(0, 1);
+    lcd.print("     "); // Clear the line
+    lcd.setCursor(0, 1);
+    lcd.print(totalWeight, 2); // Display total weight with 2 decimal places
+    lcd.print(" kg");
+    
+    if (totalWeight >= maxLongAlarmWeight) {
+      // If the total weight exceeds 50kg, trigger a long buzzer alarm for 15 seconds
+      triggerAlarm(15000); // 15 seconds
+    } else if (totalWeight >= maxShortAlarmWeight) {
+      // If the total weight exceeds 30kg, trigger a short buzzer alarm for 5 seconds
+      triggerAlarm(5000); // 5 seconds
+    }
+  }
+}
+
+void triggerAlarm(unsigned long duration) {
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(duration);
+  digitalWrite(BUZZER_PIN, LOW);
+  totalWeight = 0.0;
+  
+  lcd.setCursor(0, 1);
+  lcd.print("     "); // Clear the line
+  lcd.setCursor(0, 1);
+  lcd.print("0.00 kg");
+}
